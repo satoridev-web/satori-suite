@@ -41,11 +41,13 @@ satori-suite/
 
 - [Project Scope (v0.2)](docs/Satori_Membership_Suite_Project_Scope_v0-2.pdf)
 - [Core Spec (v0.2)](docs/Satori_Core_Install_Bootstrap_Hooks_v1_v0-2.pdf)
+- [Core MVP – Definition of Done](docs/Core_MVP_Definition_of_Done.md)
 - [Branching & Versioning Guide](docs/Branching_and_Versioning.md)
 - [Changelog](CHANGELOG.md)
 - [Working with Ms Chat](docs/Working_with_Ms_Chat.md)
 - [Next Steps](docs/NEXT_STEPS.md)
 - [Distribution Architecture Diagram](docs/Satori_Distribution_Architecture_v0-2.png)
+- [Documentation Index](docs/README.md)
 
 ---
 
@@ -71,6 +73,10 @@ satori-suite/
 ## License
 
 GPL-2.0-or-later. See [LICENSE](LICENSE).
+
+---
+
+📚 **Full Documentation Index:** See [docs/README.md](docs/README.md) for a complete list of project documents.
 
 ---
 
