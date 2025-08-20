@@ -1,0 +1,18 @@
+{
+  "name": "satori/satori-core",
+  "description": "SATORI Core \u2014 foundation for the SATORI Suite.",
+  "type": "wordpress-plugin",
+  "license": "proprietary",
+  "require": {
+    "php": ">=8.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Satori\\\\Core\\\\": "core/"
+    }
+  },
+  "scripts": {
+    "phpcs": "phpcs",
+    "phpstan": "phpstan analyse"
+  }
+}

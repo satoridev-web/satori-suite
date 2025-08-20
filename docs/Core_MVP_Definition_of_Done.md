@@ -1,4 +1,5 @@
 # Core MVP – Definition of Done
+_Last updated: 2025-08-20 03:29 (AEST)_
 
 ## 1) CoreGuard (must-have)
 - Detect Core presence + version.
@@ -125,6 +126,16 @@
   - Settings/Debug behavior
   - Update client behavior
   - Logging locations & retention
+
+---
+
+## 10) Packaging & Release
+- Produce a clean ZIP of SATORI Core (Phase 1) for tagging and distribution.
+- Include README.md with quick install and module integration notes.
+- Verify ZIP installs/activates on a clean LocalWP site.
+
+**Reminder ✅**
+_Re‑package Core with the AdminSettings version constant fix baked in before tagging v0.1.0._
 
 ---
 

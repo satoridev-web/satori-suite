@@ -46,3 +46,9 @@ This file tracks our agreed milestones after establishing the v0.2 foundation.
 ## Notes
 - Use this checklist as a living document in `/docs`.
 - Mark milestones as complete and update scope as we progress.
+
+---
+
+## Cross-reference
+- See **Core_MVP_Definition_of_Done.md** for full Phase 1 acceptance criteria.
+- Reminder: re-package Core with the AdminSettings version constant fix baked in before tagging `v0.1.0`.
