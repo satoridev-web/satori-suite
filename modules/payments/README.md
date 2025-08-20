@@ -1,0 +1,1 @@
+SATORI Payments — module skeleton.

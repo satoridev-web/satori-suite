@@ -1,0 +1,33 @@
+name: Package Plugins
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create build directory
+        run: mkdir -p build
+
+      - name: Package Core
+        run: |
+          zip -r build/satori-core.zip core -x '*/.*' 'core/**/node_modules/*' 'core/**/vendor/*'
+
+      - name: Package Modules
+        run: |
+          for dir in modules/*; do
+            name=$(basename "$dir")
+            zip -r "build/satori-$name.zip" "$dir" -x '*/.*' '**/node_modules/*' '**/vendor/*'
+          done
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: satori-builds
+          path: build/*

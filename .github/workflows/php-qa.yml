@@ -1,0 +1,31 @@
+name: PHP QA
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          coverage: none
+          tools: composer
+
+      - name: Validate composer.json
+        run: composer validate --no-interaction
+
+      - name: Install dev dependencies
+        run: composer install --prefer-dist --no-progress --no-suggest
+
+      - name: PHPCS (WordPress standards)
+        run: composer phpcs
+
+      - name: PHPStan
+        run: composer phpstan
