@@ -1,14 +1,18 @@
 # SATORI Suite — Next Steps Checklist (v0.2 Baseline)
 
-This file tracks our agreed milestones after establishing the v0.2 foundation.
+This file tracks our agreed milestones for the whole suite after establishing the v0.2 foundation.
+
+> **Scope:** Project‑wide roadmap (Core + Modules).  
+> **Authoritative:** Yes — this is the primary roadmap.  
+> **Core note:** Core‑only details live in `core/docs/NEXT_STEPS_CORE.md`.
 
 ---
 
 ## Phase 1 — Core Foundation (Aug–Sep 2025)
-- [ ] Finalize **SATORI Core** bootstrap & installer guard
+- [ ] Finalize **SATORI Core** bootstrap & installer guard (CoreGuard)
 - [ ] Implement Core update client (`updates.wordpressed.com.au`)
 - [ ] Add initial public hooks (capabilities, settings, notifications)
-- [ ] Write quick-start Core developer doc
+- [ ] Write quick‑start Core developer doc
 
 ## Phase 2 — First Modules (Sep–Oct 2025)
 - [ ] **SATORI Forms** — baseline form submission
@@ -39,7 +43,7 @@ This file tracks our agreed milestones after establishing the v0.2 foundation.
 ## Optional Future Modules (Deferred)
 - SATORI Tables (DataTables integration)
 - SATORI Folders (Media/File manager)
-- Enterprise-only: SSO, org hierarchies, audit sinks
+- Enterprise‑only: SSO, org hierarchies, audit sinks
 
 ---
 
@@ -47,8 +51,6 @@ This file tracks our agreed milestones after establishing the v0.2 foundation.
 - Use this checklist as a living document in `/docs`.
 - Mark milestones as complete and update scope as we progress.
 
----
-
-## Cross-reference
-- See **Core_MVP_Definition_of_Done.md** for full Phase 1 acceptance criteria.
-- Reminder: re-package Core with the AdminSettings version constant fix baked in before tagging `v0.1.0`.
+## Cross‑reference
+- See **`core/docs/NEXT_STEPS_CORE.md`** for Core‑only acceptance items and test flow.
+- See **`docs/Core_MVP_Definition_of_Done.md`** for Core MVP acceptance criteria.

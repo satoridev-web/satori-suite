@@ -1,0 +1,15 @@
+{
+  "name": "SATORI Core (Beta)",
+  "slug": "satori-core",
+  "version": "0.2.0-beta1",
+  "tested": "6.8.2",
+  "requires": "6.0",
+  "author": "Satori Graphics",
+  "author_profile": "https://satori.com.au/",
+  "download_url": "https://updates.wordpressed.com.au/satori-core/satori-core-0.2.0-beta1.zip",
+  "sections": {
+    "description": "⚠️ Beta channel release. Includes experimental features for testing.\n\nThis build may be unstable — use only on staging environments.",
+    "changelog": "0.2.0-beta1:\n- Initial beta release of SATORI Core update client.\n- Added logger and tools/settings integration.\n- Introduced environment-based update channel toggling."
+  },
+  "homepage": "https://satori.com.au/plugins/satori-core/"
+}

@@ -1,13 +1,52 @@
 /* -------------------------------------------------
  * SATORI Core — Admin Styles
  * -------------------------------------------------*/
+
+/* Footer tags */
 .satori-core-wrap .tag {
     display: inline-block;
     padding: 2px 6px;
     border-radius: 4px;
-    background: #f1f5f9;
-    border: 1px solid #cbd5e1;
+    background: #f1f5f9; /* slate-100 */
+    border: 1px solid #cbd5e1; /* slate-300 */
     font-size: 12px;
     margin-right: 8px;
+    color: #334155; /* slate-700 */
 }
-.satori-core-footer { margin-top: 12px; color: #334155; }
+
+.satori-core-footer {
+    margin-top: 12px;
+    color: #334155;
+}
+
+/* WP default tables: small spacing polish only (keeps native look) */
+.satori-core-wrap .form-table th {
+    vertical-align: top;
+    padding-top: 12px;
+}
+.satori-core-wrap .form-table td p.description {
+    margin-top: 6px;
+    color: #475569; /* slate-600 */
+}
+
+/* -------------------------------------------------
+ * Debug footer (admins only when Debug ON)
+ * Rendered INSIDE #wpfooter (via in_admin_footer)
+ * -------------------------------------------------*/
+#wpfooter .satori-core-debug-footer {
+    margin-top: 8px;             /* spacing from core footer rows */
+    padding-top: 6px;
+    border-top: 1px solid #e5e7eb; /* slate-200 */
+    font-size: 12px;
+    color: #334155;               /* slate-700 */
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+    /* align with WP footer padding so it never hides under the admin menu */
+    padding-left: 0;
+    padding-right: 0;
+}
+#wpfooter .satori-core-debug-footer .sep { opacity: 0.6; }
+#wpfooter .satori-core-debug-footer .log-link { text-decoration: none; }
+#wpfooter .satori-core-debug-footer .log-link:hover { text-decoration: underline; }

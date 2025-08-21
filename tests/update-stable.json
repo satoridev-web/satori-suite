@@ -1,0 +1,15 @@
+{
+  "name": "SATORI Core",
+  "slug": "satori-core",
+  "version": "0.1.1",
+  "tested": "6.8.2",
+  "requires": "6.0",
+  "author": "Satori Graphics",
+  "author_profile": "https://satori.com.au/",
+  "download_url": "https://updates.wordpressed.com.au/satori-core/satori-core-0.1.1.zip",
+  "sections": {
+    "description": "Stable release channel. Recommended for production environments.",
+    "changelog": "0.1.1: Minor fixes and improvements to update client and settings page."
+  },
+  "homepage": "https://satori.com.au/plugins/satori-core/"
+}
