@@ -26,6 +26,9 @@ const PLUGIN_FILE = __FILE__;
 define('SATORI_CORE_PATH', plugin_dir_path(__FILE__));
 define('SATORI_CORE_URL', plugin_dir_url(__FILE__));
 
+// Make version available to modules that check for it.
+if (!defined('SATORI_CORE_VERSION')) { define('SATORI_CORE_VERSION', VERSION); }
+
 // Simple environment toggles (override via wp-config.php if needed)
 if (!defined('SATORI_CORE_DEBUG')) { define('SATORI_CORE_DEBUG', false); }
 
@@ -36,20 +39,26 @@ spl_autoload_register(function ($class) {
     $prefix = 'Satori\\Core\\';
     $base_dir = SATORI_CORE_PATH . 'core/';
     $len = strlen($prefix);
-    if (strncmp($prefix, $class, $len) !== 0) { return; }
+    if (strncmp($prefix, $class, $len) !== 0) {
+        return;
+    }
     $relative_class = substr($class, $len);
     $file = $base_dir . str_replace('\\', '/', $relative_class) . '.php';
-    if (file_exists($file)) { require $file; }
+    if (file_exists($file)) {
+        require $file;
+    }
 });
 
 /* -------------------------------------------------
  * Bootstrap
  * -------------------------------------------------*/
-add_action('plugins_loaded', function() {
-    // PHP check
+add_action('plugins_loaded', function () {
+    // Minimum PHP
     if (version_compare(PHP_VERSION, MIN_PHP, '<')) {
-        add_action('admin_notices', function() {
-            echo '<div class="notice notice-error"><p>' . esc_html__('SATORI Core requires PHP ' . MIN_PHP . '+', 'satori-core') . '</p></div>';
+        add_action('admin_notices', function () {
+            echo '<div class="notice notice-error"><p>'
+               . esc_html(sprintf(__('SATORI Core requires PHP %s or higher.', 'satori'), MIN_PHP))
+               . '</p></div>';
         });
         return;
     }
@@ -61,20 +70,16 @@ add_action('plugins_loaded', function() {
     Includes\UpdateClient::instance();
     Includes\Helpers::instance();
 
-    /**
-     * Fires when SATORI Core has fully loaded.
-     */
     do_action('satori/core/loaded');
 });
 
 /* -------------------------------------------------
  * Activation / Deactivation
  * -------------------------------------------------*/
-register_activation_hook(__FILE__, function() {
-    // Placeholder for any setup tasks (caps, options, schedules)
+register_activation_hook(__FILE__, function () {
     update_option('satori_core_version', VERSION);
 });
 
-register_deactivation_hook(__FILE__, function() {
-    // Placeholder for clean deactivation (leave options for safety unless user purges)
+register_deactivation_hook(__FILE__, function () {
+    // Keep options/logs unless explicitly purged by user.
 });

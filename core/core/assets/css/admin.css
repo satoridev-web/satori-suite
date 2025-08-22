@@ -2,51 +2,129 @@
  * SATORI Core — Admin Styles
  * -------------------------------------------------*/
 
-/* Footer tags */
-.satori-core-wrap .tag {
-    display: inline-block;
-    padding: 2px 6px;
-    border-radius: 4px;
-    background: #f1f5f9; /* slate-100 */
-    border: 1px solid #cbd5e1; /* slate-300 */
-    font-size: 12px;
-    margin-right: 8px;
-    color: #334155; /* slate-700 */
+ .satori-core-wrap h1 {
+    margin-bottom: 16px;
 }
 
-.satori-core-footer {
-    margin-top: 12px;
-    color: #334155;
-}
-
-/* WP default tables: small spacing polish only (keeps native look) */
 .satori-core-wrap .form-table th {
-    vertical-align: top;
-    padding-top: 12px;
+    width: 200px;
 }
-.satori-core-wrap .form-table td p.description {
-    margin-top: 6px;
-    color: #475569; /* slate-600 */
+
+/* Inline descriptions under fields */
+.satori-core-wrap .description {
+    display: block;
+    margin-top: 4px;
+    color: #555d66;
+    font-size: 13px;
+    font-style: italic;
+}
+
+/* Status messages */
+#satori-copy-diagnostics-status,
+#satori-test-log-status,
+#satori-advanced-status {
+    margin-left: 8px;
+    font-style: italic;
+    color: #555;
 }
 
 /* -------------------------------------------------
- * Debug footer (admins only when Debug ON)
- * Rendered INSIDE #wpfooter (via in_admin_footer)
+ * Debug footer
  * -------------------------------------------------*/
-#wpfooter .satori-core-debug-footer {
-    margin-top: 8px;             /* spacing from core footer rows */
+.satori-core-debug-footer {
+    margin-top: 8px;
     padding-top: 6px;
-    border-top: 1px solid #e5e7eb; /* slate-200 */
+    border-top: 1px solid #e5e7eb;
     font-size: 12px;
-    color: #334155;               /* slate-700 */
+    color: #334155;
     display: flex;
     gap: 8px;
     align-items: center;
     flex-wrap: wrap;
-    /* align with WP footer padding so it never hides under the admin menu */
-    padding-left: 0;
-    padding-right: 0;
 }
-#wpfooter .satori-core-debug-footer .sep { opacity: 0.6; }
-#wpfooter .satori-core-debug-footer .log-link { text-decoration: none; }
-#wpfooter .satori-core-debug-footer .log-link:hover { text-decoration: underline; }
+.satori-core-debug-footer .tag {
+    background: #e2e8f0;
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-weight: 500;
+}
+.satori-core-debug-footer .sep {
+    color: #94a3b8;
+}
+.satori-core-debug-footer .log-link {
+    color: #0366d6;
+    text-decoration: none;
+}
+.satori-core-debug-footer .log-link:hover {
+    text-decoration: underline;
+}
+
+/* -------------------------------------------------
+ * Tooltip styling
+ * -------------------------------------------------*/
+.satori-tooltip {
+    display: inline-block;
+    margin-left: 4px;
+    background: #111; /* black circle */
+    color: #fff;
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    font-size: 11px;
+    line-height: 16px;
+    text-align: center;
+    font-weight: bold;
+    cursor: help;
+    position: relative;
+    z-index: 1; /* ensure above field labels */
+}
+
+/* Tooltip bubble */
+.satori-tooltip::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 125%; /* show above icon */
+    left: 50%;
+    transform: translateX(-50%);
+    background: #111827;
+    color: #f9fafb;
+    padding: 6px 10px;
+    border-radius: 4px;
+    white-space: normal;
+    max-width: 240px;
+    font-size: 11px;
+    line-height: 1.2;
+    z-index: 9999;
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.25s ease-in-out, visibility 0.25s ease-in-out, transform 0.25s ease-in-out;
+    transform: translate(-50%, -5px); /* slight lift */
+}
+
+/* Tooltip arrow */
+.satori-tooltip::before {
+    content: "";
+    position: absolute;
+    bottom: 115%;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 5px;
+    border-style: solid;
+    border-color: #111827 transparent transparent transparent;
+    z-index: 9999;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.25s ease-in-out, visibility 0.25s ease-in-out;
+}
+
+/* Show on hover with fade + slide */
+.satori-tooltip:hover::after,
+.satori-tooltip:hover::before {
+    opacity: 1;
+    visibility: visible;
+}
+
+.satori-tooltip:hover::after {
+    transform: translate(-50%, -8px); /* animate upwards smoothly */
+}

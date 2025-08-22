@@ -17,335 +17,308 @@ class AdminSettings {
     }
 
     private function __construct() {
-        add_action('admin_menu',               [$this, 'register_menu']);
-        add_action('admin_init',               [$this, 'register_settings']);
-        add_action('admin_enqueue_scripts',    [$this, 'assets']);
+        add_action('admin_menu', [ $this, 'register_menu' ]);
+        add_action('admin_init', [ $this, 'register_settings' ]);
+        add_action('admin_enqueue_scripts', [ $this, 'enqueue' ]);
 
-        // Render inside #wpfooter (prevents overlap behind admin menu)
-        add_action('in_admin_footer',          [$this, 'render_debug_footer']);
+        // Debug footer
+        add_action('in_admin_footer', [ $this, 'debug_footer' ], 99);
+        add_action('admin_footer',    [ $this, 'debug_footer' ], 99);
 
-        // Advanced utilities (AJAX)
-        add_action('wp_ajax_satori_core_recheck_updates',  [$this, 'ajax_recheck_updates']);
-        add_action('wp_ajax_satori_core_clear_caches',     [$this, 'ajax_clear_caches']);
-        add_action('wp_ajax_satori_core_export_settings',  [$this, 'ajax_export_settings']);
-        add_action('wp_ajax_satori_core_view_log',         [$this, 'ajax_view_log']);
+        // Utilities
+        add_action('wp_ajax_satori_core_recheck_updates',   [ $this, 'ajax_recheck_updates' ]);
+        add_action('wp_ajax_satori_core_clear_caches',      [ $this, 'ajax_clear_caches' ]);
+        add_action('wp_ajax_satori_core_export_settings',   [ $this, 'ajax_export_settings' ]);
+        add_action('wp_ajax_satori_core_write_test_log',    [ $this, 'ajax_write_test_log' ]);
 
-        // Log settings updates
-        add_action('update_option_satori_core_settings',   [$this, 'on_settings_updated'], 10, 3);
-        add_action('add_option_satori_core_settings',      [$this, 'on_settings_added'], 10, 2);
+        // Streaming endpoint
+        add_action('wp_ajax_satori_core_stream_latest_log', [ $this, 'ajax_stream_latest_log' ]);
     }
 
-    /* -------------------------------------------------
-     * Menu
-     * -------------------------------------------------*/
     public function register_menu() : void {
-        add_menu_page(
-            __('SATORI', 'satori-core'),
-            __('SATORI', 'satori-core'),
+        add_options_page(
+            __('SATORI Settings','satori'),
+            __('SATORI','satori'),
             'manage_options',
-            'satori-tools',
-            [$this, 'render_page'],
-            'dashicons-admin-generic',
-            58
+            'satori-core-settings',
+            [ $this, 'render_page' ]
         );
     }
 
-    /* -------------------------------------------------
-     * Assets
-     * -------------------------------------------------*/
-    public function assets() : void {
-        $ver = defined('\Satori\Core\VERSION') ? \Satori\Core\VERSION : '0.1.0';
+    public function register_settings() : void {
+        register_setting('satori_core', 'satori_core_settings', [
+            'sanitize_callback' => [ $this, 'sanitize' ],
+        ]);
+    }
 
-        // Expect constants like SATORI_CORE_URL to be defined by the bootstrap.
+    public function enqueue($hook) : void {
+        if ($hook !== 'settings_page_satori-core-settings') return;
+
+        $ver = defined('SATORI_CORE_VERSION') ? SATORI_CORE_VERSION : 'dev';
         wp_enqueue_style('satori-core-admin', SATORI_CORE_URL . 'core/assets/css/admin.css', [], $ver);
         wp_enqueue_script('satori-core-admin', SATORI_CORE_URL . 'core/assets/js/admin.js', ['jquery'], $ver, true);
 
+        $stream_url = wp_nonce_url(
+            admin_url('admin-ajax.php?action=satori_core_stream_latest_log'),
+            'satori-core-admin'
+        );
+
         wp_localize_script('satori-core-admin', 'SatoriCoreAdmin', [
-            'nonce' => wp_create_nonce('satori-core-admin'),
+            'nonce'        => wp_create_nonce('satori-core-admin'),
+            'ajaxurl'      => admin_url('admin-ajax.php'),
+            'streamLogUrl' => $stream_url,
         ]);
     }
 
-    /* -------------------------------------------------
-     * Settings API
-     * -------------------------------------------------*/
-    public function register_settings() : void {
-        register_setting('satori_core', 'satori_core_settings', [
-            'type'              => 'array',
-            'sanitize_callback' => [$this, 'sanitize_settings'],
-            'default'           => [
-                'site_id'        => '',
-                'update_channel' => 'stable',
-                'license_key'    => '',
-                'debug'          => false,
-                'telemetry'      => false,
-            ],
-        ]);
+    public function sanitize($input) : array {
+        $existing = get_option('satori_core_settings', []);
+        $in = is_array($input) ? $input : [];
+        $out = $existing;
 
-        // General
-        add_settings_section('satori_core_general', __('General', 'satori-core'), '__return_false', 'satori_core');
-        add_settings_field('site_id',         __('Site ID', 'satori-core'),        [$this, 'field_site_id'],        'satori_core', 'satori_core_general', ['key' => 'site_id']);
-        add_settings_field('update_channel',  __('Updates Channel', 'satori-core'),[$this, 'field_update_channel'], 'satori_core', 'satori_core_general', ['key' => 'update_channel']);
-        add_settings_field('license_key',     __('License Key', 'satori-core'),    [$this, 'field_license_key'],    'satori_core', 'satori_core_general', ['key' => 'license_key']);
+        if (array_key_exists('update_channel', $in)) {
+            $out['update_channel'] = sanitize_text_field($in['update_channel']);
+        } elseif (!isset($out['update_channel'])) {
+            $out['update_channel'] = 'stable';
+        }
 
-        // Debug & Telemetry
-        add_settings_section('satori_core_debug', __('Debug & Telemetry', 'satori-core'), '__return_false', 'satori_core');
-        add_settings_field('debug',      __('Debug Mode', 'satori-core'),       [$this, 'field_debug'],     'satori_core', 'satori_core_debug', ['key' => 'debug']);
-        add_settings_field('telemetry',  __('Telemetry (opt‑in)', 'satori-core'),[$this, 'field_telemetry'],'satori_core', 'satori_core_debug', ['key' => 'telemetry']);
+        if (array_key_exists('license', $in)) {
+            $out['license'] = sanitize_text_field($in['license']);
+        } elseif (!isset($out['license'])) {
+            $out['license'] = '';
+        }
 
-        // Let modules register additional tabs/fields
-        do_action('satori/core/register_settings_tabs');
-    }
+        if (array_key_exists('debug', $in)) {
+            $out['debug'] = ! empty($in['debug']) ? '1' : '0';
+        } elseif (!isset($out['debug'])) {
+            $out['debug'] = '0';
+        }
 
-    public function sanitize_settings($input) : array {
-        $out = [];
-        $out['site_id']        = sanitize_text_field($input['site_id'] ?? '');
-        $out['update_channel'] = in_array(($input['update_channel'] ?? 'stable'), ['stable','beta'], true) ? $input['update_channel'] : 'stable';
-        $out['license_key']    = sanitize_text_field($input['license_key'] ?? '');
-        $out['debug']          = !empty($input['debug']);
-        $out['telemetry']      = !empty($input['telemetry']);
+        if (array_key_exists('telemetry', $in)) {
+            $out['telemetry'] = ! empty($in['telemetry']) ? '1' : '0';
+        } elseif (!isset($out['telemetry'])) {
+            $out['telemetry'] = '0';
+        }
+
         return $out;
     }
 
-    private function get_opts() : array {
-        return get_option('satori_core_settings', []);
-    }
-
-    /* -------------------------------------------------
-     * Field renderers (WP default tables + descriptions)
-     * -------------------------------------------------*/
-    public function field_site_id($args) : void {
-        $opts = $this->get_opts();
-        $key  = esc_attr($args['key']);
-        $val  = esc_attr($opts[$key] ?? '');
-        echo '<input type="text" class="regular-text" name="satori_core_settings['.$key.']" value="'.$val.'" readonly />';
-        echo '<p class="description">'.esc_html__('A unique identifier for this site. Read‑only.', 'satori-core').'</p>';
-    }
-
-    public function field_update_channel($args) : void {
-        $opts = $this->get_opts();
-        $key  = esc_attr($args['key']);
-        $val  = esc_attr($opts[$key] ?? 'stable');
-
-        echo '<select name="satori_core_settings['.$key.']">';
-        echo '<option value="stable" '.selected($val, 'stable', false).'>'.esc_html__('Stable (recommended)', 'satori-core').'</option>';
-        echo '<option value="beta" '.selected($val, 'beta', false).'>'.esc_html__('Beta (early features)', 'satori-core').'</option>';
-        echo '</select>';
-        echo '<p class="description">'.esc_html__('Choose which release channel to receive updates from. Stable is tested and production‑ready. Beta includes new features earlier and may be less stable.', 'satori-core').'</p>';
-    }
-
-    public function field_license_key($args) : void {
-        $opts = $this->get_opts();
-        $key  = esc_attr($args['key']);
-        $val  = esc_attr($opts[$key] ?? '');
-        echo '<input type="text" class="regular-text" name="satori_core_settings['.$key.']" value="'.$val.'" />';
-        echo '<p class="description">'.esc_html__('Optional for MVP. Stored for future PRO/Enterprise licensing, not enforced yet.', 'satori-core').'</p>';
-    }
-
-    public function field_debug($args) : void {
-        $opts = $this->get_opts();
-        $key  = esc_attr($args['key']);
-        $val  = !empty($opts[$key]);
-        echo '<label><input type="checkbox" name="satori_core_settings['.$key.']" value="1" '.checked($val, true, false).' /> '.esc_html__('Enabled', 'satori-core').'</label>';
-        echo '<p class="description">'.esc_html__('Enables verbose logging and shows a compact debug footer in WP admin. Only administrators can see debug info.', 'satori-core').'</p>';
-    }
-
-    public function field_telemetry($args) : void {
-        $opts = $this->get_opts();
-        $key  = esc_attr($args['key']);
-        $val  = !empty($opts[$key]);
-        echo '<label><input type="checkbox" name="satori_core_settings['.$key.']" value="1" '.checked($val, true, false).' /> '.esc_html__('Opt‑in', 'satori-core').'</label>';
-        echo '<p class="description">'.esc_html__('Sends anonymous technical information (e.g., WordPress version, PHP version, active SATORI modules). No personal data is collected. OFF by default in MVP.', 'satori-core').'</p>';
-    }
-
-    /* -------------------------------------------------
-     * Page render (WP default tables + default buttons)
-     * -------------------------------------------------*/
     public function render_page() : void {
-        if (!current_user_can('manage_options')) return;
+        if (! current_user_can('manage_options')) return;
 
-        $nonce_recheck = wp_create_nonce('satori_core_recheck_updates');
-        $nonce_clear   = wp_create_nonce('satori_core_clear_caches');
-        $nonce_export  = wp_create_nonce('satori_core_export_settings');
-        $ver           = defined('\Satori\Core\VERSION') ? \Satori\Core\VERSION : '0.1.0';
+        $active   = isset($_GET['tab']) ? sanitize_key($_GET['tab']) : 'general';
+        $settings = get_option('satori_core_settings', []);
+        $tabs = [
+            'general'  => __('General','satori'),
+            'debug'    => __('Debug & Telemetry','satori'),
+            'advanced' => __('Advanced','satori'),
+        ];
+
+        $home    = home_url('/');
+        $site_id = hash_hmac('sha256', $home, wp_salt('auth'));
         ?>
         <div class="wrap satori-core-wrap">
-            <h1><?php echo esc_html__('SATORI — Tools/Settings', 'satori-core'); ?></h1>
+            <h1><?php echo esc_html__('SATORI Core','satori'); ?></h1>
+
+            <h2 class="nav-tab-wrapper">
+                <?php foreach ($tabs as $key => $label) : ?>
+                    <a class="nav-tab <?php echo $active === $key ? 'nav-tab-active' : ''; ?>"
+                       href="<?php echo esc_url( add_query_arg('tab', $key, menu_page_url('satori-core-settings', false)) ); ?>">
+                        <?php echo esc_html($label); ?>
+                    </a>
+                <?php endforeach; ?>
+            </h2>
 
             <form method="post" action="options.php">
                 <?php settings_fields('satori_core'); ?>
-                <table class="form-table" role="presentation">
-                    <?php do_settings_sections('satori_core'); ?>
-                </table>
-                <?php submit_button(); ?>
-            </form>
 
-            <hr/>
+                <?php if ($active === 'general') : ?>
+                    <table class="form-table" role="presentation">
+                        <tr>
+                            <th scope="row">
+                                <?php esc_html_e('Site ID','satori'); ?>
+                                <span class="satori-tooltip" data-tooltip="<?php esc_attr_e('Unique identifier generated from your site URL.','satori'); ?>">?</span>
+                            </th>
+                            <td><code><?php echo esc_html($site_id); ?></code></td>
+                        </tr>
+                        <tr>
+                            <th scope="row">
+                                <?php esc_html_e('Updates channel','satori'); ?>
+                                <span class="satori-tooltip" data-tooltip="<?php esc_attr_e('Select Stable (recommended) for production, or Beta for testing new features early.','satori'); ?>">?</span>
+                            </th>
+                            <td>
+                                <select name="satori_core_settings[update_channel]">
+                                    <option value="stable" <?php selected(($settings['update_channel'] ?? 'stable'), 'stable'); ?>><?php esc_html_e('Stable','satori'); ?></option>
+                                    <option value="beta"   <?php selected(($settings['update_channel'] ?? 'stable'), 'beta'); ?>><?php esc_html_e('Beta','satori'); ?></option>
+                                </select>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row">
+                                <?php esc_html_e('License key','satori'); ?>
+                                <span class="satori-tooltip" data-tooltip="<?php esc_attr_e('Enter your license key to enable updates and support.','satori'); ?>">?</span>
+                            </th>
+                            <td><input type="text" class="regular-text" name="satori_core_settings[license]" value="<?php echo esc_attr($settings['license'] ?? ''); ?>"></td>
+                        </tr>
+                    </table>
+                    <?php submit_button(); ?>
 
-            <h2><?php echo esc_html__('Advanced', 'satori-core'); ?></h2>
-            <p class="description"><?php echo esc_html__('Utilities for maintenance and diagnostics. Safe actions only; admin capability required.', 'satori-core'); ?></p>
-            <p>
-                <a href="<?php echo esc_url( admin_url('admin-ajax.php?action=satori_core_recheck_updates&_wpnonce=' . $nonce_recheck) ); ?>" class="button"><?php echo esc_html__('Recheck Updates', 'satori-core'); ?></a>
-                <a href="<?php echo esc_url( admin_url('admin-ajax.php?action=satori_core_clear_caches&_wpnonce=' . $nonce_clear) ); ?>" class="button"><?php echo esc_html__('Clear SATORI Caches/Transients', 'satori-core'); ?></a>
-                <a href="<?php echo esc_url( admin_url('admin-ajax.php?action=satori_core_export_settings&_wpnonce=' . $nonce_export) ); ?>" class="button"><?php echo esc_html__('Export Settings (JSON)', 'satori-core'); ?></a>
-            </p>
+                <?php elseif ($active === 'debug') : ?>
+                    <table class="form-table" role="presentation">
+                        <tr>
+                            <th scope="row">
+                                <?php esc_html_e('Debug mode','satori'); ?>
+                                <span class="satori-tooltip" data-tooltip="<?php esc_attr_e('Enable detailed logging and show a debug footer on all admin pages.','satori'); ?>">?</span>
+                            </th>
+                            <td>
+                                <input type="hidden" name="satori_core_settings[debug]" value="0">
+                                <label>
+                                    <input type="checkbox" name="satori_core_settings[debug]" value="1" <?php checked(($settings['debug'] ?? '0'), '1'); ?>>
+                                    <?php esc_html_e('Enable verbose logging and admin debug footer','satori'); ?>
+                                </label>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row">
+                                <?php esc_html_e('Telemetry','satori'); ?>
+                                <span class="satori-tooltip" data-tooltip="<?php esc_attr_e('Opt-in to anonymous usage data that helps us improve SATORI. Default is OFF.','satori'); ?>">?</span>
+                            </th>
+                            <td>
+                                <input type="hidden" name="satori_core_settings[telemetry]" value="0">
+                                <label>
+                                    <input type="checkbox" name="satori_core_settings[telemetry]" value="1" <?php checked(($settings['telemetry'] ?? '0'), '1'); ?>>
+                                    <?php esc_html_e('Opt-in to anonymous usage metrics (OFF by default)','satori'); ?>
+                                </label>
+                            </td>
+                        </tr>
+                    </table>
 
-            <h2><?php echo esc_html__('Diagnostics', 'satori-core'); ?></h2>
-            <p>
-                <a href="<?php echo esc_url( wp_nonce_url(admin_url('admin-ajax.php?action=satori_core_copy_diagnostics'), 'satori_core_diag') ); ?>" class="button"><?php echo esc_html__('Copy Diagnostics to Clipboard', 'satori-core'); ?></a>
-            </p>
+                    <p>
+                        <button type="button" id="satori-copy-diagnostics" class="button">
+                            <?php esc_html_e('Copy diagnostics to clipboard','satori'); ?>
+                        </button>
+                        <span id="satori-copy-diagnostics-status" class="description" aria-live="polite"></span>
+                    </p>
 
-            <div class="satori-core-footer">
-                <?php if (Helpers::get_setting('debug')): ?>
-                    <span class="tag"><?php echo esc_html__('Debug ON', 'satori-core'); ?></span>
+                    <p>
+                        <button type="button" id="satori-write-test-log" class="button">
+                            <?php esc_html_e('Write test log entry','satori'); ?>
+                        </button>
+                        <span id="satori-test-log-status" class="description" aria-live="polite"></span>
+                    </p>
+
+                    <?php submit_button(); ?>
+
+                <?php else : ?>
+                    <p class="description"><?php esc_html_e('Maintenance actions','satori'); ?></p>
+                    <p class="satori-advanced-actions">
+                        <button type="button" id="satori-recheck-updates" class="button">
+                            <?php esc_html_e('Recheck updates','satori'); ?>
+                        </button>
+                        <span class="satori-tooltip" data-tooltip="<?php esc_attr_e('Force WordPress to immediately recheck available plugin updates.','satori'); ?>">?</span>
+
+                        <button type="button" id="satori-clear-caches"  class="button">
+                            <?php esc_html_e('Clear SATORI caches','satori'); ?>
+                        </button>
+                        <span class="satori-tooltip" data-tooltip="<?php esc_attr_e('Remove cached update payloads and transients. Safe to run anytime.','satori'); ?>">?</span>
+
+                        <button type="button" id="satori-export-settings" class="button">
+                            <?php esc_html_e('Export settings (JSON)','satori'); ?>
+                        </button>
+                        <span class="satori-tooltip" data-tooltip="<?php esc_attr_e('Download your current SATORI settings in JSON format for backup or migration.','satori'); ?>">?</span>
+
+                        <button type="button" id="satori-view-log" class="button">
+                            <?php esc_html_e('View latest log','satori'); ?>
+                        </button>
+                        <span class="satori-tooltip" data-tooltip="<?php esc_attr_e('Open the most recent SATORI log file in a new browser tab.','satori'); ?>">?</span>
+
+                        <span id="satori-advanced-status" class="description" aria-live="polite"></span>
+                    </p>
+                    <?php submit_button(); ?>
                 <?php endif; ?>
-                <span><?php echo esc_html__('Version', 'satori-core'); ?>: <?php echo esc_html($ver); ?></span>
-            </div>
+            </form>
         </div>
         <?php
     }
 
     /* -------------------------------------------------
-     * Debug Footer (admins only, when Debug ON) — INSIDE #wpfooter
+     * Debug footer
      * -------------------------------------------------*/
-    public function render_debug_footer() : void {
-        if ( ! is_admin() || ! current_user_can('manage_options') || ! Helpers::get_setting('debug') ) return;
+    public function debug_footer() : void {
+        static $printed = false;
+        if ($printed) { return; }
+        if (! current_user_can('manage_options')) { return; }
 
-        $ver        = defined('\Satori\Core\VERSION') ? \Satori\Core\VERSION : '0.1.0';
-        $nonce_view = wp_create_nonce('satori_core_view_log');
-        $view_url   = admin_url('admin-ajax.php?action=satori_core_view_log&_wpnonce=' . $nonce_view);
+        $debug = Helpers::get_setting('debug', '0');
+        if ($debug !== '1') { return; }
 
-        echo '<div class="satori-core-debug-footer">';
-        echo    '<span class="label">'. esc_html__('SATORI Core', 'satori-core') . ' v' . esc_html($ver) . '</span>';
-        echo    '<span class="sep">|</span>';
-        echo    '<span class="state">'. esc_html__('Debug:', 'satori-core') . ' ' . esc_html__('ON', 'satori-core') . '</span>';
-        echo    '<span class="sep">|</span>';
-        echo    '<a class="log-link" href="'. esc_url($view_url) .'" target="_blank" rel="noopener noreferrer">'. esc_html__("View today's log", 'satori-core') .'</a>';
+        $style = 'margin-top:8px;padding-top:6px;border-top:1px solid #e5e7eb;font-size:12px;'
+               . 'color:#334155;display:flex;gap:8px;align-items:center;flex-wrap:wrap';
+
+        $stream_url = wp_nonce_url(
+            admin_url('admin-ajax.php?action=satori_core_stream_latest_log'),
+            'satori-core-admin'
+        );
+
+        echo '<div class="satori-core-debug-footer" style="' . esc_attr($style) . '">';
+        echo '<span class="tag">SATORI Core v' . esc_html(\Satori\Core\VERSION) . '</span>';
+        echo '<span class="sep">|</span>';
+        echo '<a class="log-link" href="' . esc_url($stream_url) . '" target="_blank" rel="noopener">' . esc_html__('View latest log', 'satori') . '</a>';
         echo '</div>';
+        $printed = true;
     }
 
-    /* -------------------------------------------------
-     * AJAX: Recheck updates
-     * -------------------------------------------------*/
+    /* ---------- AJAX actions ---------- */
+    private function guard_ajax_or_die() : void {
+        if (! current_user_can('manage_options')) {
+            wp_send_json_error(['message' => __('Insufficient permissions.', 'satori')], 403);
+        }
+        $nonce = isset($_POST['nonce']) ? sanitize_text_field(wp_unslash($_POST['nonce'])) : '';
+        if (! wp_verify_nonce($nonce, 'satori-core-admin')) {
+            wp_send_json_error(['message' => __('Bad nonce.', 'satori')], 400);
+        }
+    }
+
     public function ajax_recheck_updates() : void {
-        check_ajax_referer('satori_core_recheck_updates');
-        if (!current_user_can('manage_options')) { wp_die(-1); }
-
-        Logger::writeStatic('info', 'Manual update recheck requested');
-
-        // Clear WP plugin update caches and our own
-        if (function_exists('wp_clean_plugins_cache')) {
-            wp_clean_plugins_cache(true);
-        }
-        delete_site_transient('update_plugins');
-        delete_transient('update_plugins');
-
-        // Trigger a fresh check
-        if (function_exists('wp_update_plugins')) {
-            wp_update_plugins();
-        }
-
-        Logger::writeStatic('info', 'Manual update recheck completed');
-        wp_safe_redirect( wp_get_referer() ?: admin_url('admin.php?page=satori-tools') );
-        exit;
+        $this->guard_ajax_or_die();
+        wp_update_plugins();
+        set_transient('satori_core_last_update_check', current_time('mysql'), HOUR_IN_SECONDS);
+        set_transient('satori_core_last_update_source', 'manual', HOUR_IN_SECONDS);
+        wp_send_json_success(['message' => __('Update check triggered.', 'satori')]);
     }
 
-    /* -------------------------------------------------
-     * AJAX: Clear caches/transients (IMPROVED)
-     *  - Clears BOTH site and non-site transients
-     *  - Clears WordPress' update_plugins caches
-     *  - Flushes object cache if present
-     * -------------------------------------------------*/
     public function ajax_clear_caches() : void {
-        check_ajax_referer('satori_core_clear_caches');
-        if (!current_user_can('manage_options')) { wp_die(-1); }
-
-        Logger::writeStatic('info', 'Clearing SATORI + WP update transients');
-
-        global $wpdb;
-
-        // 1) Delete our OWN transients (site + non-site)
-        // note: options table stores transients as option_name LIKE patterns
-        $patterns = [
-            // Generic SATORI prefixes (belt & braces)
-            '_transient_satori_%',
-            '_transient_timeout_satori_%',
-            '_site_transient_satori_%',
-            '_site_transient_timeout_satori_%',
-
-            // Explicit UpdateClient payload key (if used)
-            '_transient_satori_core_update_payload',
-            '_transient_timeout_satori_core_update_payload',
-            '_site_transient_satori_core_update_payload',
-            '_site_transient_timeout_satori_core_update_payload',
-        ];
-
-        foreach ($patterns as $like) {
-            // Some patterns include % already; prepare is still fine
-            $wpdb->query(
-                $wpdb->prepare(
-                    "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s",
-                    $like
-                )
-            );
-        }
-
-        // 2) Clear WordPress' own plugin update caches (site + non-site)
+        $this->guard_ajax_or_die();
         delete_site_transient('update_plugins');
-        delete_transient('update_plugins');
-        if (function_exists('wp_clean_plugins_cache')) {
-            wp_clean_plugins_cache(true);
-        }
-
-        // 3) Optional: flush object cache (if persistent cache is active)
-        if (function_exists('wp_cache_flush')) {
-            wp_cache_flush();
-        }
-
-        Logger::writeStatic('info', 'Cleared SATORI + WP update transients');
-
-        wp_safe_redirect( wp_get_referer() ?: admin_url('admin.php?page=satori-tools') );
-        exit;
+        delete_site_transient('satori_core_update_payload');
+        delete_transient('satori_core_last_update_check');
+        delete_transient('satori_core_last_update_source');
+        wp_send_json_success(['message' => __('Caches cleared.', 'satori')]);
     }
 
-    /* -------------------------------------------------
-     * AJAX: Export settings (JSON download)
-     * -------------------------------------------------*/
     public function ajax_export_settings() : void {
-        check_ajax_referer('satori_core_export_settings');
-        if (!current_user_can('manage_options')) { wp_die(-1); }
-
-        Logger::writeStatic('info', 'Exporting SATORI Core settings');
-
-        $settings = get_option('satori_core_settings', []);
-        $json     = wp_json_encode($settings, JSON_PRETTY_PRINT);
-
-        nocache_headers();
-        header('Content-Type: application/json; charset=utf-8');
-        header('Content-Disposition: attachment; filename=satori-core-settings.json');
-        echo $json;
-        exit;
+        $this->guard_ajax_or_die();
+        $data = get_option('satori_core_settings', []);
+        wp_send_json_success(['settings' => $data]);
     }
 
-    /* -------------------------------------------------
-     * AJAX: Securely stream today's log (admins only)
-     * -------------------------------------------------*/
-    public function ajax_view_log() : void {
-        check_ajax_referer('satori_core_view_log');
-        Logger::streamLatestLogStatic(); // handles caps + headers + exit
+    public function ajax_write_test_log() : void {
+        $this->guard_ajax_or_die();
+        Logger::writeStatic('debug', 'Test log entry via Tools/Settings', [
+            'time' => current_time('mysql'),
+            'user' => get_current_user_id(),
+        ]);
+        wp_send_json_success(['message' => __('Test log written.', 'satori')]);
     }
 
-    /* -------------------------------------------------
-     * Settings change logging
-     * -------------------------------------------------*/
-    public function on_settings_updated($old_value, $value, $option) : void {
-        $masked = $value;
-        if (!empty($masked['license_key'])) { $masked['license_key'] = '***'; }
-        Logger::writeStatic('info', 'Settings updated', $masked);
-    }
-
-    public function on_settings_added($option, $value) : void {
-        $masked = $value;
-        if (!empty($masked['license_key'])) { $masked['license_key'] = '***'; }
-        Logger::writeStatic('info', 'Settings added', $masked);
+    public function ajax_stream_latest_log() : void {
+        if (! current_user_can('manage_options')) {
+            wp_die(-1);
+        }
+        $nonce = isset($_GET['_wpnonce']) ? sanitize_text_field(wp_unslash($_GET['_wpnonce'])) : '';
+        if (! wp_verify_nonce($nonce, 'satori-core-admin')) {
+            status_header(403);
+            wp_die(__('Bad nonce.', 'satori'));
+        }
+        Logger::streamLatestLogStatic();
     }
 }
