@@ -1,0 +1,18 @@
+SATORI Git Branching & Versioning Guide (v1)
+0) TL;DR (defaults)
+
+Default branch: main
+
+Branches: type/module-short/short-desc
+
+Examples: feat/forms/conditional-logic, fix/core/updater-nonce, docs/scope/v0-3-notes
+
+Merge strategy: Squash & Merge into main
+
+Tags: SemVer, annotated: vMAJOR.MINOR.PATCH (e.g., v0.3.0)
+
+Changelog: update in PR, tag after merge
+
+1) Branch naming
+
+Pattern
